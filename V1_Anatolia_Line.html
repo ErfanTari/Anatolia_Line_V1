@@ -28,13 +28,23 @@
   .field{margin:10px 0} .field label{display:block;font-size:11px;color:var(--muted);margin-bottom:4px}
   .field input{width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:12px;font-size:14px}
   .login-wrap{min-height:100vh;display:grid;place-items:center;padding:16px}
-  .login{width:100%;max-width:380px;background:#fff;border:1px solid var(--border);border-radius:16px;padding:20px;box-shadow:0 6px 24px rgba(0,0,0,.06)}
+  .login{width:100%;max-width:380px;background:#fff;border:1px solid var(--border);border-radius:16px;padding:20px;box-shadow:06px 24px rgba(0,0,0,.06)}
+  .history{margin-top:16px;padding-top:12px;border-top:1px solid var(--border);display:flex;flex-direction:column;gap:8px}
+  .history-title{font-size:11px;color:var(--muted);letter-spacing:.04em;text-transform:uppercase}
+  .history-list{display:flex;flex-direction:column;gap:6px;max-height:180px;overflow:auto;padding-right:4px}
+  .history-item{display:flex;align-items:center;justify-content:space-between;border:1px solid var(--border);background:#f8fafc;padding:6px 10px;border-radius:10px;font-size:12px;cursor:pointer;gap:12px}
+  .history-item span{display:block}
+  .history-item:hover{background:#eef2ff}
+  .history-empty{font-size:12px;color:var(--muted)}
   </style>
 </head>
 <body>
   <div id="app"></div>
   <script>
   (function(){
+    function cloneLine(obj){return JSON.parse(JSON.stringify(obj));}
+    function timestamp(){return new Date().toISOString();}
+    function formatTimestamp(iso){if(!iso)return 'Not yet saved';var d=new Date(iso);if(isNaN(d.getTime()))return iso;return d.toLocaleString('en-GB',{dateStyle:'medium',timeStyle:'short'});}
     var state={
       authed:false,
       lines:{
@@ -42,18 +52,24 @@
         LB:{line:'LB',body:'ALB10',thickness_mm:12,size:'120x280',engobe:'EN-08B',product_code:'Onyx-Matt-120x280',protection_glaze:'Drygranul-X',kiln_temperature_C:1218,kiln_cycle:'KILN-12mm-Matt',surface:'Matt'},
         LC:{line:'LC',body:'R20',thickness_mm:10,size:'90x180',engobe:'EN-20C',product_code:'FrenchVanilla-Honed-90x180',protection_glaze:'X-Glaze',kiln_temperature_C:1220,kiln_cycle:'KILN-10mm-Honed',surface:'Honed'}
       },
-      editing:null
+      editing:null,
+      history:{}
     };
+    Object.keys(state.lines).forEach(function(key){var line=state.lines[key];if(!line.lastSaved)line.lastSaved=timestamp();});
+    Object.keys(state.lines).forEach(function(key){state.history[key]=[{savedAt:state.lines[key].lastSaved,snapshot:cloneLine(state.lines[key])}];});
     function h(t,a,c){var e=document.createElement(t);a=a||{};c=c||[];for(var k in a){var v=a[k];if(k==='class')e.className=v;else if(k.indexOf('on')===0)e.addEventListener(k.slice(2).toLowerCase(),v);else if(k==='html')e.innerHTML=v;else e.setAttribute(k,v);}c.forEach(function(x){e.appendChild(typeof x==='string'?document.createTextNode(x):x);});return e;}
     function kv(k,v,hl){return h('div',{},[h('div',{class:'k'},[k]),h('div',{class:'v',style:hl?'color:#065f46':''},[String(v)])]);}
-    function Box(d){return h('div',{class:'card'},[h('div',{class:'row'},[h('div',{},[h('div',{class:'k'},['Line']),h('div',{class:'v'},[d.line])]),h('button',{class:'button',onClick:function(){openEdit(d.line)}},['Edit'])]),h('div',{class:'kvgrid'},[kv('Body',d.body),kv('Thickness',d.thickness_mm+' mm'),kv('Size',d.size),kv('Engobe',d.engobe),kv('Product code',d.product_code),kv('Protection glaze',d.protection_glaze),kv('Kiln temperature',d.kiln_temperature_C+' °C',true),kv('Kiln cycle',d.kiln_cycle),kv('Surface',d.surface)])]);}
+    function Box(d){return h('div',{class:'card'},[h('div',{class:'row'},[h('div',{},[h('div',{class:'k'},['Line']),h('div',{class:'v'},[d.line])]),h('button',{class:'button',onClick:function(){openEdit(d.line);}},['Edit'])]),h('div',{class:'kvgrid'},[kv('Body',d.body),kv('Thickness',d.thickness_mm+' mm'),kv('Size',d.size),kv('Engobe',d.engobe),kv('Product code',d.product_code),kv('Protection glaze',d.protection_glaze),kv('Kiln temperature',d.kiln_temperature_C+' °C',true),kv('Kiln cycle',d.kiln_cycle),kv('Surface',d.surface),kv('Last saved',formatTimestamp(d.lastSaved))])]);}
     function Header(){return h('div',{class:'header'},[h('div',{class:'title'},['Anatolia — Live Production (Static)']),h('div',{class:'spacer'},[]),h('div',{class:'small'},['Europe/Istanbul · '+new Date().toLocaleDateString('en-GB')]),state.authed?h('button',{class:'button',onClick:logout},['Log out']):null]);}
     function Footer(){return h('div',{class:'footer'},['Demo login: name ',h('b',{},['Production']),' · password ',h('b',{},['Prototype'])]);}
-    function openEdit(line){state.editing=JSON.parse(JSON.stringify(state.lines[line]));render();}
+    function openEdit(line){state.editing=cloneLine(state.lines[line]);render();}
     function closeEdit(){state.editing=null;render();}
-    function saveEdit(){var n=state.editing;state.lines[n.line]=n;state.editing=null;render();}
+    function saveEdit(){var n=state.editing;var stamp=timestamp();n.lastSaved=stamp;state.lines[n.line]=cloneLine(n);if(!state.history[n.line])state.history[n.line]=[];state.history[n.line].push({savedAt:stamp,snapshot:cloneLine(n)});state.editing=null;render();}
+    function loadHistory(line,index){var entry=state.history[line]&&state.history[line][index];if(!entry)return;state.editing=cloneLine(entry.snapshot);render();}
     function EditModal(){if(!state.editing)return document.createDocumentFragment();var l=state.editing;function field(lbl,key,t,ph){t=t||'text';ph=ph||'';var inp=h('input',{value:l[key],placeholder:ph},[]);if(t==='number')inp.setAttribute('type','number');inp.addEventListener('input',function(e){l[key]=(t==='number')?Number(e.target.value):e.target.value;});return h('label',{class:'field'},[h('span',{class:'k'},[lbl]),inp]);}
-      return h('div',{class:'modal-outer'},[h('div',{class:'modal-backdrop',onClick:closeEdit},[]),h('div',{class:'modal'},[h('div',{class:'row'},[h('div',{},[h('div',{class:'small'},['Edit Line']),h('div',{class:'title'},[l.line])]),h('button',{class:'button',onClick:closeEdit},['Close'])]),field('Body','body'),field('Thickness (mm)','thickness_mm','number'),field('Size','size'),field('Engobe','engobe'),field('Product code','product_code'),field('Protection glaze','protection_glaze'),field('Kiln temperature (°C)','kiln_temperature_C','number'),field('Kiln cycle','kiln_cycle'),field('Surface','surface'),h('div',{class:'row',style:'margin-top:10px;gap:8px'},[h('button',{class:'button',onClick:saveEdit},['Save changes']),h('div',{class:'small',style:'color:#065f46'},['Saved ✓'])])])]);}
+      var entries=state.history[l.line]||[];
+      var historyItems=entries.length?entries.slice().reverse().map(function(entry,revIdx){var originalIndex=entries.length-1-revIdx;return h('button',{class:'history-item',type:'button',onClick:function(){loadHistory(l.line,originalIndex);}},[h('span',{},[formatTimestamp(entry.savedAt)]),h('span',{class:'small',style:'color:#2563eb;font-weight:600'},['Load'])]);}):[h('div',{class:'history-empty'},['No previous saves yet.'])];
+      return h('div',{class:'modal-outer'},[h('div',{class:'modal-backdrop',onClick:closeEdit},[]),h('div',{class:'modal'},[h('div',{class:'row'},[h('div',{},[h('div',{class:'small'},['Edit Line']),h('div',{class:'title'},[l.line])]),h('button',{class:'button',onClick:closeEdit},['Close'])]),field('Body','body'),field('Thickness (mm)','thickness_mm','number'),field('Size','size'),field('Engobe','engobe'),field('Product code','product_code'),field('Protection glaze','protection_glaze'),field('Kiln temperature (°C)','kiln_temperature_C','number'),field('Kiln cycle','kiln_cycle'),field('Surface','surface'),h('div',{class:'row',style:'margin-top:10px;gap:8px;align-items:center'},[h('button',{class:'button',onClick:saveEdit},['Save changes']),h('div',{class:'small',style:'color:#065f46'},['Last saved ',formatTimestamp(l.lastSaved)])]),h('div',{class:'history'},[h('div',{class:'history-title'},['History']),h('div',{class:'small'},['Load a previous timestamp to review or restore.']),h('div',{class:'history-list'},historyItems)])])]);}
     function Login(){return h('div',{class:'login-wrap'},[h('form',{class:'login',onSubmit:function(e){e.preventDefault();var n=document.getElementById('name').value.trim();var p=document.getElementById('pwd').value.trim();if(n==='Production'&&p==='Prototype'){state.authed=true;render();}else{document.getElementById('err').textContent='Invalid credentials.';}}},[h('div',{class:'title'},['Anatolia — Live Production']),h('div',{class:'small'},['Login required']),h('div',{class:'field'},[h('label',{},['Name']),h('input',{id:'name',placeholder:'Production',autofocus:true},[])]),h('div',{class:'field'},[h('label',{},['Password']),h('input',{id:'pwd',type:'password',placeholder:'Prototype'},[])]),h('div',{id:'err',class:'small',style:'color:#dc2626;min-height:16px;margin-top:4px'},[]),h('button',{type:'submit',class:'button',style:'width:100%;font-weight:600'},['Sign in'])])]);}
     function logout(){state.authed=false;render();}
     function App(){if(!state.authed)return Login();var grid=h('div',{class:'grid'},[]);grid.appendChild(Box(state.lines.LA));grid.appendChild(Box(state.lines.LB));grid.appendChild(Box(state.lines.LC));return h('div',{class:'container'},[Header(),grid,Footer(),EditModal()]);}
