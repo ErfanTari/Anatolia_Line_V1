@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Anatolia — Live Production (Static)</title>
+  <style>
+  :root { --bg:#f8fafc; --card:#fff; --border:#e5e7eb; --text:#0f172a; --muted:#64748b; }
+  *{box-sizing:border-box} html,body{margin:0;padding:0;font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,'Helvetica Neue',Arial;background:var(--bg);color:var(--text)}
+  .container{max-width:1200px;margin:0 auto;padding:16px}
+  .header{display:flex;align-items:center;gap:12px;padding:12px;border:1px solid var(--border);background:var(--card);border-radius:16px;box-shadow:0 1px 2px rgba(0,0,0,.04)}
+  .header .spacer{flex:1}
+  .small{color:var(--muted);font-size:12px}
+  .title{font-weight:600}
+  .grid{display:grid;grid-template-columns:1fr;gap:16px;margin-top:16px}
+  @media (min-width:900px){.grid{grid-template-columns:repeat(3,1fr)}}
+  .card{border:1px solid var(--border);background:var(--card);border-radius:16px;padding:16px;box-shadow:0 1px 2px rgba(0,0,0,.04)}
+  .row{display:flex;align-items:baseline;justify-content:space-between;gap:8px}
+  .kvgrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:8px}
+  @media (min-width:900px){.kvgrid{grid-template-columns:repeat(3,minmax(0,1fr))}}
+  .k{font-size:11px;color:var(--muted)} .v{font-weight:600}
+  .button{border:1px solid var(--border);background:#fff;padding:6px 10px;border-radius:12px;font-size:12px;cursor:pointer}
+  .button:hover{background:#f6f7f9}
+  .footer{text-align:center;font-size:12px;color:var(--muted);margin:24px 0}
+  .modal-outer{position:fixed;inset:0;display:flex;z-index:50}
+  .modal-backdrop{flex:1;background:rgba(0,0,0,.2)}
+  .modal{width:420px;background:#fff;border-left:1px solid var(--border);box-shadow:-8px 0 24px rgba(0,0,0,.12);padding:20px;overflow:auto}
+  .field{margin:10px 0} .field label{display:block;font-size:11px;color:var(--muted);margin-bottom:4px}
+  .field input{width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:12px;font-size:14px}
+  .login-wrap{min-height:100vh;display:grid;place-items:center;padding:16px}
+  .login{width:100%;max-width:380px;background:#fff;border:1px solid var(--border);border-radius:16px;padding:20px;box-shadow:0 6px 24px rgba(0,0,0,.06)}
+  </style>
+</head>
+<body>
+  <div id="app"></div>
+  <script>
+  (function(){
+    var state={
+      authed:false,
+      lines:{
+        LA:{line:'LA',body:'R21',thickness_mm:18,size:'160x320',engobe:'EN-12A',product_code:'BG-Topaz-Polished-160x320',protection_glaze:'Silckyrock',kiln_temperature_C:1223,kiln_cycle:'KILN-18mm-Polished',surface:'Polished'},
+        LB:{line:'LB',body:'ALB10',thickness_mm:12,size:'120x280',engobe:'EN-08B',product_code:'Onyx-Matt-120x280',protection_glaze:'Drygranul-X',kiln_temperature_C:1218,kiln_cycle:'KILN-12mm-Matt',surface:'Matt'},
+        LC:{line:'LC',body:'R20',thickness_mm:10,size:'90x180',engobe:'EN-20C',product_code:'FrenchVanilla-Honed-90x180',protection_glaze:'X-Glaze',kiln_temperature_C:1220,kiln_cycle:'KILN-10mm-Honed',surface:'Honed'}
+      },
+      editing:null
+    };
+    function h(t,a,c){var e=document.createElement(t);a=a||{};c=c||[];for(var k in a){var v=a[k];if(k==='class')e.className=v;else if(k.indexOf('on')===0)e.addEventListener(k.slice(2).toLowerCase(),v);else if(k==='html')e.innerHTML=v;else e.setAttribute(k,v);}c.forEach(function(x){e.appendChild(typeof x==='string'?document.createTextNode(x):x);});return e;}
+    function kv(k,v,hl){return h('div',{},[h('div',{class:'k'},[k]),h('div',{class:'v',style:hl?'color:#065f46':''},[String(v)])]);}
+    function Box(d){return h('div',{class:'card'},[h('div',{class:'row'},[h('div',{},[h('div',{class:'k'},['Line']),h('div',{class:'v'},[d.line])]),h('button',{class:'button',onClick:function(){openEdit(d.line)}},['Edit'])]),h('div',{class:'kvgrid'},[kv('Body',d.body),kv('Thickness',d.thickness_mm+' mm'),kv('Size',d.size),kv('Engobe',d.engobe),kv('Product code',d.product_code),kv('Protection glaze',d.protection_glaze),kv('Kiln temperature',d.kiln_temperature_C+' °C',true),kv('Kiln cycle',d.kiln_cycle),kv('Surface',d.surface)])]);}
+    function Header(){return h('div',{class:'header'},[h('div',{class:'title'},['Anatolia — Live Production (Static)']),h('div',{class:'spacer'},[]),h('div',{class:'small'},['Europe/Istanbul · '+new Date().toLocaleDateString('en-GB')]),state.authed?h('button',{class:'button',onClick:logout},['Log out']):null]);}
+    function Footer(){return h('div',{class:'footer'},['Demo login: name ',h('b',{},['Production']),' · password ',h('b',{},['Prototype'])]);}
+    function openEdit(line){state.editing=JSON.parse(JSON.stringify(state.lines[line]));render();}
+    function closeEdit(){state.editing=null;render();}
+    function saveEdit(){var n=state.editing;state.lines[n.line]=n;state.editing=null;render();}
+    function EditModal(){if(!state.editing)return document.createDocumentFragment();var l=state.editing;function field(lbl,key,t,ph){t=t||'text';ph=ph||'';var inp=h('input',{value:l[key],placeholder:ph},[]);if(t==='number')inp.setAttribute('type','number');inp.addEventListener('input',function(e){l[key]=(t==='number')?Number(e.target.value):e.target.value;});return h('label',{class:'field'},[h('span',{class:'k'},[lbl]),inp]);}
+      return h('div',{class:'modal-outer'},[h('div',{class:'modal-backdrop',onClick:closeEdit},[]),h('div',{class:'modal'},[h('div',{class:'row'},[h('div',{},[h('div',{class:'small'},['Edit Line']),h('div',{class:'title'},[l.line])]),h('button',{class:'button',onClick:closeEdit},['Close'])]),field('Body','body'),field('Thickness (mm)','thickness_mm','number'),field('Size','size'),field('Engobe','engobe'),field('Product code','product_code'),field('Protection glaze','protection_glaze'),field('Kiln temperature (°C)','kiln_temperature_C','number'),field('Kiln cycle','kiln_cycle'),field('Surface','surface'),h('div',{class:'row',style:'margin-top:10px;gap:8px'},[h('button',{class:'button',onClick:saveEdit},['Save changes']),h('div',{class:'small',style:'color:#065f46'},['Saved ✓'])])])]);}
+    function Login(){return h('div',{class:'login-wrap'},[h('form',{class:'login',onSubmit:function(e){e.preventDefault();var n=document.getElementById('name').value.trim();var p=document.getElementById('pwd').value.trim();if(n==='Production'&&p==='Prototype'){state.authed=true;render();}else{document.getElementById('err').textContent='Invalid credentials.';}}},[h('div',{class:'title'},['Anatolia — Live Production']),h('div',{class:'small'},['Login required']),h('div',{class:'field'},[h('label',{},['Name']),h('input',{id:'name',placeholder:'Production',autofocus:true},[])]),h('div',{class:'field'},[h('label',{},['Password']),h('input',{id:'pwd',type:'password',placeholder:'Prototype'},[])]),h('div',{id:'err',class:'small',style:'color:#dc2626;min-height:16px;margin-top:4px'},[]),h('button',{type:'submit',class:'button',style:'width:100%;font-weight:600'},['Sign in'])])]);}
+    function logout(){state.authed=false;render();}
+    function App(){if(!state.authed)return Login();var grid=h('div',{class:'grid'},[]);grid.appendChild(Box(state.lines.LA));grid.appendChild(Box(state.lines.LB));grid.appendChild(Box(state.lines.LC));return h('div',{class:'container'},[Header(),grid,Footer(),EditModal()]);}
+    function render(){var root=document.getElementById('app');root.innerHTML='';root.appendChild(App());}
+    render();
+  })();
+  </script>
+</body>
+</html>
